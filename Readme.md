@@ -14,10 +14,10 @@ There are 4 distinct Kaggle kernels:
 
 Since these datasets use each other's outputs, they have to be properly imported
 in the Kaggle interface (e.g. `saint-plus-train` must import
-`saint-plus-preprocessing`).
+`saint-plus-preprocessing`). The kernel `saint-plus` must be imported as a
+script.
 
-
-# Ressources
+# Resources
 
 ## Challenge
 
