@@ -1,0 +1,6 @@
+__pycache__
+*.png
+timetrack*.csv
+*.log
+.direnv/
+input/

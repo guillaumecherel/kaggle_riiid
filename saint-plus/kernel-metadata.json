@@ -1,0 +1,23 @@
+{
+  "id": "guillaumecherel/saint-plus",
+  "id_no": 12729954,
+  "title": "SAINT PLUS",
+  "code_file": "saint-plus.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": false,
+  "keywords": [
+    "utility script"
+  ],
+  "dataset_sources": [
+    "rohanrao/riiid-train-data-multiple-formats"
+  ],
+  "kernel_sources": [
+    "guillaumecherel/saint-plus-preprocessing"
+  ],
+  "competition_sources": [
+    "riiid-test-answer-prediction"
+  ]
+}
