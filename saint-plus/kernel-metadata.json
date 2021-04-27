@@ -18,6 +18,6 @@
     "guillaumecherel/saint-plus-preprocessing"
   ],
   "competition_sources": [
-    "riiid-test-answer-prediction"
+    "c/riiid-test-answer-prediction"
   ]
 }

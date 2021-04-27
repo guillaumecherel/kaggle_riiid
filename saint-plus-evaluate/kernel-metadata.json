@@ -6,12 +6,21 @@
   "language": "python",
   "kernel_type": "script",
   "is_private": true,
-  "enable_gpu": false,
-  "enable_internet": true,
-  "keywords": [],
-  "dataset_sources": [],
-  "kernel_sources": [],
+  "enable_gpu": true,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "its7171/riiid-cross-validation-files",
+    "guillaumecherel/saintplus-train-checkpoint"
+  ],
+  "kernel_sources": [
+    "guillaumecherel/saint-plus-preprocessing",
+    "guillaumecherel/time-series-api-iter-test-emulator",
+    "guillaumecherel/saint-plus"
+  ],
   "competition_sources": [
-    "riiid-test-answer-prediction"
+    "c/riiid-test-answer-prediction"
   ]
 }

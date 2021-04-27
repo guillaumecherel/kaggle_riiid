@@ -191,8 +191,8 @@ index_nb_interactions = []
 
 batch = []
 
-def write_batch(batch, path):
-    print("Writing batch to " + path + "…")
+def write_batch(batch, db_path):
+    print("Writing batch to " + db_path + "…")
     sys.stdout.flush()
 
     with pd.HDFStore(db_path) as store:
@@ -207,7 +207,8 @@ def write_batch(batch, path):
 
 for (i, (uid, df)) in enumerate(sequences(interactions)):
     db_num = i // users_per_file
-    db_path = "riiid-train-data-sequences/{:05d}.h5".format(db_num)
+    db_filename = "{:05d}.h5".format(db_num)
+    db_path = "riiid-train-data-sequences/{}".format(db_filename)
     db_uid = "user_" + str(uid)
 
     past_n_interactions = n_interactions
@@ -221,7 +222,7 @@ for (i, (uid, df)) in enumerate(sequences(interactions)):
     # Categories are numbered from 1 to 7.
     n_unique_categories = max(n_unique_categories, df["categories"].max())
 
-    index_filenames.append(db_path)
+    index_filenames.append(db_filename)
     index_users.append(db_uid)
     index_lowest_interaction_id.append(past_n_interactions)
     index_nb_interactions.append(cur_n_interactions)

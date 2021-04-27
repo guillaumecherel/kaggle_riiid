@@ -8,13 +8,17 @@
   "is_private": true,
   "enable_gpu": true,
   "enable_internet": true,
-  "keywords": [],
-  "dataset_sources": [],
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "guillaumecherel/saintplus-train-checkpoint"
+  ],
   "kernel_sources": [
     "guillaumecherel/saint-plus-preprocessing",
     "guillaumecherel/saint-plus"
   ],
   "competition_sources": [
-    "riiid-test-answer-prediction"
+    "c/riiid-test-answer-prediction"
   ]
 }

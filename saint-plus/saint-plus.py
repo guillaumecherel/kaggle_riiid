@@ -25,6 +25,25 @@ import sys
 # You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using "Save & Run All" 
 #_ You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session
 
+# Input sequence length
+win_size = 100
+# Number of heads
+h = 8
+# Number of stacked encoder and decoder blocks
+N = 4
+# Latent space dimension. Dimension of all layer output (including embeddings).
+d_model = 512
+# d_model = 256
+# Dimensions of key, query and value vectors
+d_key = d_model // h
+# d_key = 8
+# Dimension of the internal layer of the feed forward networks (see function
+# ffn).
+dff = 2048
+# dff = 512
+# Dropout rate
+dropout_rate = 0.1
+
 
 #################
 # Load the data #
@@ -63,19 +82,16 @@ class SequencesHDF5(keras.utils.Sequence):
         self.batch_size = batch_size
         self.win_size = win_size
 
-        with pd.HDFStore(os.path.join(self.path, 
-            "riiid-train-data-sequences/index.h5"), "r") as store:
+        with pd.HDFStore(os.path.join(self.path, "index.h5"), "r") as store:
             self.index = store["index"]
-            
-        with pd.HDFStore(os.path.join(self.path,
-            "riiid-train-data-sequences/meta.h5"), "r") as store:
+                       
+        with pd.HDFStore(os.path.join(self.path, "meta.h5"), "r") as store:
             meta = store["meta"]
             self.n_users = meta["n_users"][0]
             self.n_interactions = meta["n_interactions"][0]
             # Add 1 because we count the padding value 0 as an additionnal
             # question.
-            # TODO: remove the extra +1 after updating the database
-            self.n_unique_questions = meta["n_unique_questions"][0] + 1 + 1
+            self.n_unique_questions = meta["n_unique_questions"][0] + 1
             # Categories start at 1, we use 0 as a padding value which we count
             # as an additionnal category.
             self.n_unique_categories = meta["n_unique_categories"][0] + 1
@@ -146,12 +162,12 @@ class SequencesHDF5(keras.utils.Sequence):
             # to make a full batch
             if fn == None:
                 que.append(np.full((n, self.win_size), 0, dtype = np.int16))
-                cat.append(np.full((n, self.win_size), 0, dtype = np.int8))
+                cat.append(np.full((n, self.win_size), 0, dtype = np.uint8))
                 pos.append(np.full((n, self.win_size), 0, dtype = np.int32))
-                pan.append(np.full((n, self.win_size), 0, dtype = np.int8))
-                ans.append(np.full((n, self.win_size), 0, dtype = np.int8))
+                pan.append(np.full((n, self.win_size), 0, dtype = np.uint8))
+                ans.append(np.full((n, self.win_size), 0, dtype = np.uint8))
             else:
-                with pd.HDFStore(os.path.join(self.path, fn)) as store:
+                with pd.HDFStore(os.path.join(self.path, fn), "r") as store:
                     for user, start, n in user_start_n:
                         df = store["/" + user].loc[max(0, start - self.win_size + 1) \
                             : start + n - 1, :]
@@ -169,7 +185,7 @@ class SequencesHDF5(keras.utils.Sequence):
                                 max(0, start - self.win_size + 1) + 1, 
                                     start + n + 1), 
                                 dtype = "int32"), 
-                            win_size, 0, skip))
+                            self.win_size, 0, skip))
                         # For past answers and expected answers below, use 0 for padding
                         # but don't distinguish it from the answer 0. The padding values won't be
                         # used for prediction anyway.
@@ -202,29 +218,34 @@ class SequencesHDF5(keras.utils.Sequence):
 def build_model(
     sequences,
     #window size
-    win_size = 100, 
+    win_size = win_size, 
     # number of heads
-    h = 4,
+    h = h,
     # Number of stacked encoder and decoder blocks
-    N = 4,
+    N = N,
     # Latent space dimension. Dimension of all layer output (including embeddings). 
     #d_model = 512
-    d_model = 128,
+    d_model = d_model,
     # Dimensions of key, query and value vectors
     # d_key = d_model // h
-    d_key = 32,
+    d_key = d_key,
     # Dimension of the internal layer of the feed forward networks (see function 
     # ffn).
     #dff = 2048
-    dff = 512,
-    plot_models = False):
+    dff = dff,
+    # Dropout rate
+    dropout_rate = dropout_rate,
+    plot_models = False,
+    # Not compiling the model can lead to faster prediction
+    # https://stackoverflow.com/questions/58378374/why-does-keras-model-predict-slower-after-compile
+    compile_model = True):
     question_input = keras.Input(shape=(win_size,), dtype="int16", 
             name = "questions")
-    category_input = keras.Input(shape=(win_size,), dtype="int8", 
+    category_input = keras.Input(shape=(win_size,), dtype="uint8", 
             name = "categories")
     position_input = keras.Input(shape=(win_size,), dtype="int32", 
             name = "positions")
-    past_answer_input = keras.Input(shape=(win_size,), dtype="int8", 
+    past_answer_input = keras.Input(shape=(win_size,), dtype="uint8", 
             name = "past_answers")
 
     # Vocabulary size: maximum question id + 1 (question ids start at 0)
@@ -257,10 +278,12 @@ def build_model(
     # Exercises embedding, dim (batch, win_size, d_model)
     exercise_embedding = kl.Add()([question_embedding, category_embedding, 
         position_embedding])
+    exercise_embedding = kl.Dropout(dropout_rate)(exercise_embedding)
     print("Exercise embedding", exercise_embedding.shape)
 
     # Response embedding, dim (batch, win_size, d_model)
     response_embedding = kl.Add()([past_answer_embedding, position_embedding])
+    response_embedding = kl.Dropout(dropout_rate)(response_embedding)
     print("Response embedding", exercise_embedding.shape)
 
     # Mask used in the multihead attention layers. 
@@ -316,7 +339,8 @@ def build_model(
 
         out = kl.Concatenate(axis=2)(heads)
         out = kl.Dense(d_model, use_bias=False)(out)
-
+        out = kl.Dropout(dropout_rate)(out)
+        
         return keras.Model(inputs = [q, k, v], outputs = [out], name = name)
 
     if plot_models:
@@ -330,6 +354,8 @@ def build_model(
         x = keras.Input((win_size, d_model), name="x")
         out = kl.Dense(dff, activation = "relu", use_bias = True)(x)
         out = kl.Dense(d_model, use_bias=True)(out)
+        out = kl.Dropout(dropout_rate)(out)
+        
         return keras.Model(x, out, name = name) 
 
     if plot_models:
@@ -345,7 +371,7 @@ def build_model(
         returns: Tensor with shape (batch, win_size, d_model)"""
         x = keras.Input((win_size, d_model), name="x")
         x_norm = kl.LayerNormalization()(x)
-        m = x + multihead()([x_norm, x_norm, x_norm])
+        m = x + multihead()([x_norm, x_norm, x_norm]) 
         out = m + ffn()(kl.LayerNormalization()(m))
         return keras.Model(x, out, name = name)
 
@@ -438,15 +464,18 @@ def build_model(
     if plot_models:
         keras.utils.plot_model(model, "graph_model.png", show_shapes = True)
 
-    print("Compiling.")
-    model.compile(
-        optimizer=keras.optimizers.Adam() ,
-        loss={"answers": keras.losses.BinaryCrossentropy()},
-        metrics={"answers": [
-            tf.keras.metrics.BinaryAccuracy(), 
-            tf.keras.metrics.AUC()
-        ]},
-    )
+    if compile_model:
+        print("Compiling.")
+        model.compile(
+            optimizer=keras.optimizers.Adam() ,
+            loss={"answers": keras.losses.BinaryCrossentropy()},
+            metrics={"answers": [
+                tf.keras.metrics.BinaryAccuracy(), 
+                tf.keras.metrics.AUC()
+            ]},
+        )
+    else:
+        print("Skipping model compilation.")
     
     return model
 
